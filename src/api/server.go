@@ -5,14 +5,19 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync/atomic"
 
 	"github.com/f1bonacc1/process-compose/src/app"
 	"github.com/f1bonacc1/process-compose/src/docs"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	"github.com/swaggo/swag"
 )
 
 const EnvDebugMode = "PC_DEBUG_MODE"
+
+var swaggerInstanceCounter uint64
 
 func StartHttpServerWithUnixSocket(useLogger bool, unixSocket string, project app.IProject) (*http.Server, error) {
 	router := getRouter(useLogger, project)
@@ -48,12 +53,15 @@ func StartHttpServerWithUnixSocket(useLogger bool, unixSocket string, project ap
 }
 
 func StartHttpServerWithTCP(useLogger bool, address string, port int, project app.IProject) (*http.Server, error) {
-	// Update Swagger documentation with the actual configured address and port.
-	// This ensures the interactive Swagger UI can communicate with the API server
-	// on the correct host and port, instead of showing the hardcoded default.
-	docs.SwaggerInfo.Host = fmt.Sprintf("%s:%d", address, port)
+	// Register a dedicated Swagger document for this server instance so the
+	// interactive Swagger UI points to the configured address and port without
+	// mutating the shared default Swagger metadata used by other servers.
+	swaggerInfo := *docs.SwaggerInfo
+	swaggerInfo.Host = fmt.Sprintf("%s:%d", address, port)
+	swaggerInfo.InfoInstanceName = fmt.Sprintf("%s-%d", docs.SwaggerInfo.InstanceName(), atomic.AddUint64(&swaggerInstanceCounter, 1))
+	swag.Register(swaggerInfo.InstanceName(), &swaggerInfo)
 
-	router := getRouter(useLogger, project)
+	router := getRouter(useLogger, project, ginSwagger.InstanceName(swaggerInfo.InstanceName()))
 	endPoint := fmt.Sprintf("%s:%d", address, port)
 	log.Info().Msgf("start http server listening %s", endPoint)
 
@@ -71,10 +79,10 @@ func StartHttpServerWithTCP(useLogger bool, address string, port int, project ap
 	return server, nil
 }
 
-func getRouter(useLogger bool, project app.IProject) *gin.Engine {
+func getRouter(useLogger bool, project app.IProject, swaggerOptions ...func(*ginSwagger.Config)) *gin.Engine {
 	if os.Getenv(EnvDebugMode) == "" {
 		gin.SetMode(gin.ReleaseMode)
 		useLogger = false
 	}
-	return InitRoutes(useLogger, NewPcApi(project))
+	return InitRoutes(useLogger, NewPcApi(project), swaggerOptions...)
 }

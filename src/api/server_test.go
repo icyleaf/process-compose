@@ -16,9 +16,6 @@ func TestStartHttpServerWithTCPUpdatesSwaggerHost(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	originalHost := docs.SwaggerInfo.Host
-	t.Cleanup(func() {
-		docs.SwaggerInfo.Host = originalHost
-	})
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -61,7 +58,7 @@ func TestStartHttpServerWithTCPUpdatesSwaggerHost(t *testing.T) {
 	if got := document["host"]; got != expectedHost {
 		t.Fatalf("expected swagger host %q, got %v", expectedHost, got)
 	}
-	if docs.SwaggerInfo.Host != expectedHost {
-		t.Fatalf("expected swagger info host %q, got %q", expectedHost, docs.SwaggerInfo.Host)
+	if docs.SwaggerInfo.Host != originalHost {
+		t.Fatalf("expected default swagger host to remain %q, got %q", originalHost, docs.SwaggerInfo.Host)
 	}
 }

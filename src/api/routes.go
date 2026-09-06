@@ -30,7 +30,7 @@ func TokenAuthMiddleware(token string) gin.HandlerFunc {
 }
 
 // InitRoutes initialize routing information
-func InitRoutes(useLogger bool, handler *PcApi) *gin.Engine {
+func InitRoutes(useLogger bool, handler *PcApi, swaggerOptions ...func(*ginSwagger.Config)) *gin.Engine {
 	r := gin.New()
 	// Match routes against the raw (still percent-encoded) path so that
 	// process names containing "/" (sent as %2F) reach the :name param
@@ -51,7 +51,7 @@ func InitRoutes(useLogger bool, handler *PcApi) *gin.Engine {
 		r.Use(TokenAuthMiddleware(authToken))
 	}
 
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, swaggerOptions...))
 	r.GET("/", func(c *gin.Context) {
 		location := url.URL{Path: "/swagger/index.html"}
 		c.Redirect(http.StatusFound, location.RequestURI())
