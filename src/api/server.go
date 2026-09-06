@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/f1bonacc1/process-compose/src/app"
+	"github.com/f1bonacc1/process-compose/src/docs"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 )
@@ -47,6 +48,11 @@ func StartHttpServerWithUnixSocket(useLogger bool, unixSocket string, project ap
 }
 
 func StartHttpServerWithTCP(useLogger bool, address string, port int, project app.IProject) (*http.Server, error) {
+	// Update Swagger documentation with the actual configured address and port.
+	// This ensures the interactive Swagger UI can communicate with the API server
+	// on the correct host and port, instead of showing the hardcoded default.
+	docs.SwaggerInfo.Host = fmt.Sprintf("%s:%d", address, port)
+
 	router := getRouter(useLogger, project)
 	endPoint := fmt.Sprintf("%s:%d", address, port)
 	log.Info().Msgf("start http server listening %s", endPoint)
